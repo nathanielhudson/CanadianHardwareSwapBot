@@ -31,8 +31,10 @@ process.on('uncaughtException', function(err) {
     // log error then exit
     console.log(err);
     logger.fatal(err);
-    log4js.shutdown();
-    process.exit(1);
+    log4js.shutdown(function() {
+        console.log("Errors have been logged. ok goodbye now");
+        process.exit(1);
+    });
 });
 
 /******************************************************************
@@ -398,4 +400,4 @@ async function main() {
 }
 
 main();
-log4js.shutdown();
+console.log("Done!");
