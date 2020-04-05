@@ -317,6 +317,8 @@ function updateFlair(user) {
                     } else if (rep == 1) {
                         user.assignFlair({ subredditName: subredditName, text: rep + ' Trade', cssClass: "user" });
                     } else if (rep > 25) {
+                        user.assignFlair({ subredditName: subredditName, text: rep + ' Trades! 🏆', cssClass: "poweruser" });
+                    } else if (rep > 15) {
                         user.assignFlair({ subredditName: subredditName, text: rep + ' Trades!', cssClass: "poweruser" });
                     } else {
                         user.assignFlair({ subredditName: subredditName, text: rep + ' Trades', cssClass: "user" });
