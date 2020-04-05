@@ -1,0 +1,7 @@
+{
+    "clientId": "YOUR_VALUE_HERE",
+    "clientSecret": "YOUR_VALUE_HERE",
+    "refreshToken": "YOUR_VALUE_HERE",
+    "subredditName": "CanadianHardwareSwap",
+    "emtRepRequired": 10
+}
