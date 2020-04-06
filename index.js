@@ -266,6 +266,7 @@ function processTradeThread() {
     return new Promise(function (resolve) {
         db.get("SELECT * FROM misc WHERE k = ?", ["tradeThreadID"], (err, row) => {
             if (row.v) {
+                console.log("Processing thread 1");
                 processTradeThreadByID(row.v, resolve);
             }
         });
@@ -273,6 +274,7 @@ function processTradeThread() {
         return new Promise(function (resolve) {
             db.get("SELECT * FROM misc WHERE k = ?", ["prevTradeThreadID"], (err, row) => {
                 if (row.v) {
+                    console.log("Processing thread 2");
                     processTradeThreadByID(row.v, resolve);
                 }
             });
@@ -310,7 +312,7 @@ function processTradeThreadByID(ID, resolve) {
     });
 }
 
-function addVouch(user1, user2, permalink, originalComment, replyto) {
+function addVouch(user1, user2, permalink, replyto) {
     db.run(`INSERT INTO vouches(user1, user2, permalink) VALUES(?, ?, ?)`, [user1.name, user2.name, permalink], () => {
         if (user1.name != "nobody") {
             updateFlair(user1);
