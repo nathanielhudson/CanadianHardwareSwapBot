@@ -15,6 +15,7 @@ const r = new snoowrap({
 
 const subredditName = config.subredditName;
 const emtRepRequired = config.emtRepRequired;
+var subredditModsCache = false;
 
 /******************************************************************
 ******************** LOGGING
@@ -27,11 +28,11 @@ log4js.configure({
 var logger = log4js.getLogger();
 logger.level = 'debug';
 
-process.on('uncaughtException', function(err) {
+process.on('uncaughtException', function (err) {
     // log error then exit
     console.log(err);
     logger.fatal(err);
-    log4js.shutdown(function() {
+    log4js.shutdown(function () {
         console.log("Errors have been logged. ok goodbye now");
         process.exit(1);
     });
@@ -235,6 +236,8 @@ function makeTradeThread() {
         var tradeThread = r.getSubreddit(subredditName).submitSelfpost({
             title: 'Confirmed Trade Thread', text: 'Post your confirmed trades below.\n\n To confirm a trade: User1 should create a comment tagging User2. User2 then replies to that comment with "Confirmed".'
                 + '\n\nConfirming non-CanadianHardwareSwap trades, farming trades, or any other shenanigans will result in an immediate ban.'
+                + '**Please only confirm trades once both parties have their items in-hand (Don\'t confirm before you\'ve actually recived your package).**'
+                + '\n\nPosting what prices things sold for is highly encouraged.'
                 + '\n\nStay safe, and happy swapping!'
         }).sticky().approve().selectFlair({ flair_template_id: '7a742520-840f-11e6-b719-0e11fe917ecf' });
         tradeThread.id.then(function (id) {
@@ -289,47 +292,58 @@ function processTradeThread() {
     }); //end Promise
 }
 
-function addVouch(user1, user2, permalink, replyto) {
+function addVouch(user1, user2, permalink, originalComment, replyto) {
     db.run(`INSERT INTO vouches(user1, user2, permalink) VALUES(?, ?, ?)`, [user1.name, user2.name, permalink], () => {
-        updateFlair(user1);
-        updateFlair(user2);
+        if (user1.name != "nobody") {
+            updateFlair(user1);
+        }
+        if (user2.name != "nobody") {
+            updateFlair(user2);
+        }
     });
-    replyto.reply(`Confirmed a trade between /u/${user1.name} and /u/${user2.name}.${personality()}`);
+    if (replyto) {
+        replyto.reply(`Confirmed a trade between /u/${user1.name} and /u/${user2.name}.${personality()}`);
+    }
 }
 
-function updateFlair(user) {
+function updateFlair(user, existingFlair, isMod) {
     return new Promise(function (resolve) {
-        r.getSubreddit(subredditName).getModerators().then((mods) => {
+        getSubredditMods().then((mods) => {
             var isMod = false;
+            var modFlair;
 
             for (let mod of mods) {
                 if (mod.name.toLowerCase() == user.name.toLowerCase()) {
                     isMod = true;
+                    if (mod.author_flair_text) {
+                        var flairParts = mod.author_flair_text.split('|');
+                        modFlair = flairParts[0].trim();
+                    } else {
+                        modFlair = "Mod";
+                    }
                     break;
                 }
             }
 
-            if (!isMod) {
-                db.get("SELECT COUNT(ALL) FROM vouches WHERE user1 = ? OR user2 = ?", [user.name, user.name], (err, row) => {
-                    var rep = row['COUNT(ALL)'];
-                    if (rep == 0) {
-                        user.assignFlair({ subredditName: subredditName, text: 'No Confirmed Trades', cssClass: "newuser" });
-                    } else if (rep == 1) {
-                        user.assignFlair({ subredditName: subredditName, text: rep + ' Trade', cssClass: "user" });
-                    } else if (rep > 25) {
-                        user.assignFlair({ subredditName: subredditName, text: rep + ' Trades! 🏆', cssClass: "poweruser" });
-                    } else if (rep > 15) {
-                        user.assignFlair({ subredditName: subredditName, text: rep + ' Trades!', cssClass: "poweruser" });
-                    } else {
-                        user.assignFlair({ subredditName: subredditName, text: rep + ' Trades', cssClass: "user" });
-                    }
-                    resolve();
-                });
-            } else {
-                //future enhancement - fancier mod flairs?
-                logger.debug("Not flairing the mod!");
+
+            db.get("SELECT COUNT(ALL) FROM vouches WHERE user1 = ? OR user2 = ?", [user.name, user.name], (err, row) => {
+                var rep = row['COUNT(ALL)'];
+                if (user.isMod && rep > 1) {
+                    user.assignFlair({ subredditName: subredditName, text: modFlair + ' | ' + rep + ' Trades', cssClass: "mod" });
+                } else if (rep == 0) {
+                    user.assignFlair({ subredditName: subredditName, text: 'No Confirmed Trades', cssClass: "newuser" });
+                } else if (rep == 1) {
+                    user.assignFlair({ subredditName: subredditName, text: rep + ' Trade', cssClass: "user" });
+                } else if (rep > 25) {
+                    user.assignFlair({ subredditName: subredditName, text: rep + ' Trades! 🏆', cssClass: "poweruser" });
+                } else if (rep > 15) {
+                    user.assignFlair({ subredditName: subredditName, text: rep + ' Trades!', cssClass: "poweruser" });
+                } else {
+                    user.assignFlair({ subredditName: subredditName, text: rep + ' Trades', cssClass: "user" });
+                }
                 resolve();
-            }
+            });
+
 
         });
     });
@@ -349,6 +363,14 @@ function personality() {
         "🍁", "🍁", "🍁🍁🍁"
     ];
     return " " + items[Math.floor(Math.random() * items.length)];
+}
+
+function getSubredditMods() {
+    //basically so we don't make this request every time we update flair.
+    if (subredditModsCache === false) {
+        subredditModsCache = r.getSubreddit(subredditName).getModerators();
+    }
+    return subredditModsCache;
 }
 
 
@@ -375,7 +397,9 @@ function millisecondsToStr(elapsed) {
     }
 }
 
-
+/******************************************************************
+************* MAIN
+******************************************************************/
 
 async function main() {
     var argv = yargs.argv;
@@ -397,6 +421,14 @@ async function main() {
     }
     if (argv.ignoreNewPosts) {
         ignoreNewPosts();
+    }
+    if (argv.addVouch) { //force-add vouches
+        if (argv.addVouch == true) {
+            console.log("Need a username for addVouch");
+        } else {
+            console.log("Forcing vouch for " + argv.addVouch);
+            addVouch(r.getUser(argv.addVouch), { name: "nobody" }, "Override_" + Math.floor(Math.random() * 10000), false);
+        }
     }
     logger.debug("Done running.");
 }
