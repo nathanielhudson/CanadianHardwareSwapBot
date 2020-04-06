@@ -28,7 +28,7 @@ log4js.configure({
 var logger = log4js.getLogger();
 logger.level = 'debug';
 
-process.on('uncaughtException', function (err) {
+function logFatalError(err) {
     // log error then exit
     console.log(err);
     logger.fatal(err);
@@ -36,7 +36,10 @@ process.on('uncaughtException', function (err) {
         console.log("Errors have been logged. ok goodbye now");
         process.exit(1);
     });
-});
+}
+
+process.on('uncaughtException', logFatalError);
+process.on('unhandledRejection', logFatalError);
 
 /******************************************************************
 ******************** DB INIT
@@ -162,8 +165,6 @@ function validateTitle(title) {
     var splitTitle = title.toLowerCase().split(/\[|\]/);
     var have, want, type;
 
-    logger.debug(splitTitle);
-
     //basic sanity testing
     if (splitTitle[0].trim() != "" || splitTitle[2].trim() != "" || splitTitle[3] != "h" || splitTitle[5] != "w") {
         errors.push("Title format is incorrect - please make sure your title uses the \"[Location][H] What you have [W] What you want\" format.");
@@ -233,17 +234,26 @@ function validateAuthor(user, postInfo) {
 
 function makeTradeThread() {
     return new Promise(function (resolve) {
-        var tradeThread = r.getSubreddit(subredditName).submitSelfpost({
-            title: 'Confirmed Trade Thread', text: 'Post your confirmed trades below.\n\n To confirm a trade: User1 should create a comment tagging User2. User2 then replies to that comment with "Confirmed".'
-                + '\n\nConfirming non-CanadianHardwareSwap trades, farming trades, or any other shenanigans will result in an immediate ban.'
-                + '**Please only confirm trades once both parties have their items in-hand (Don\'t confirm before you\'ve actually recived your package).**'
-                + '\n\nPosting what prices things sold for is highly encouraged.'
-                + '\n\nStay safe, and happy swapping!'
-        }).sticky().approve().selectFlair({ flair_template_id: '7a742520-840f-11e6-b719-0e11fe917ecf' });
-        tradeThread.id.then(function (id) {
-            db.run(`REPLACE INTO misc(k, v) VALUES(?, ?)`, ["tradeThreadID", id]);
-            resolve();
+        db.get("SELECT * FROM misc WHERE k = ?", ["tradeThreadID"], (err, row) => {
+            if (row.v) {
+                db.run(`REPLACE INTO misc(k, v) VALUES(?, ?)`, ["prevTradeThreadID", row.v]);
+                resolve();
+            }
         });
+    }).then(() => {
+        return new Promise((resolve) => {
+            var tradeThread = r.getSubreddit(subredditName).submitSelfpost({
+                title: 'Confirmed Trade Thread', text: 'Post your confirmed trades below.\n\n To confirm a trade: User1 should create a comment tagging User2. User2 then replies to that comment with "Confirmed".'
+                    + '\n\nConfirming non-CanadianHardwareSwap trades, farming trades, or any other shenanigans will result in an immediate ban.'
+                    + '**Please only confirm trades once both parties have their items in-hand (Don\'t confirm before you\'ve actually recived your package).**'
+                    + '\n\nPosting what prices things sold for is highly encouraged.'
+                    + '\n\nStay safe, and happy swapping!'
+            }).sticky().approve().selectFlair({ flair_template_id: '7a742520-840f-11e6-b719-0e11fe917ecf' });
+            tradeThread.id.then(function (id) {
+                db.run(`REPLACE INTO misc(k, v) VALUES(?, ?)`, ["tradeThreadID", id]);
+                resolve();
+            });
+        })
     });
 }
 
@@ -253,43 +263,51 @@ function makeTradeThread() {
 
 function processTradeThread() {
     //TODO: Promise here is inacurate
-    return new Promise(function (mainResolve) {
+    return new Promise(function (resolve) {
         db.get("SELECT * FROM misc WHERE k = ?", ["tradeThreadID"], (err, row) => {
-            logger.debug(`Looking at thread ${row.v}.`);
-            r.getSubmission(row.v).expandReplies({ limit: Infinity, depth: 3 }).comments.then(function (comments) {
-
-                for (let comment of comments) {
-                    for (let reply of comment.replies) {
-
-                        var hasBotReplies = reply.replies.reduce((acc, val) => {
-                            return (acc || (val.author.name == "chwsbot"));
-                        }, false);
-
-                        if (
-                            reply.body.toLowerCase().includes("confirm")
-                            && comment.body.toLowerCase().includes(reply.author.name.toLowerCase())
-                            && reply.author.name != comment.author.name
-                        ) {
-                            if (!hasBotReplies) {
-                                logger.debug("NEW TRADE");
-                                addVouch(comment.author, reply.author, comment.permalink, reply);
-                            }
-                        }
-                        /*else {
-                            if (!hasBotReplies) {
-                                reply.report({ reason: 'Bot says: Possible shenanigans in confirmed trade thread.' });
-                                reply.reply(`Error: Something doesn't look right here...`);
-                            }
-                        }*/
-                    }
-                } //for comments
-
-                logger.debug("Done processing trades.");
-                mainResolve();
-
-            });
+            if (row.v) {
+                processTradeThreadByID(row.v, resolve);
+            }
         });
-    }); //end Promise
+    }).then(() => {
+        return new Promise(function (resolve) {
+            db.get("SELECT * FROM misc WHERE k = ?", ["prevTradeThreadID"], (err, row) => {
+                if (row.v) {
+                    processTradeThreadByID(row.v, resolve);
+                }
+            });
+        })
+    });
+}
+
+function processTradeThreadByID(ID, resolve) {
+    logger.debug(`Looking at thread ${ID}.`);
+    r.getSubmission(ID).expandReplies({ limit: Infinity, depth: 3 }).comments.then(function (comments) {
+
+        for (let comment of comments) {
+            for (let reply of comment.replies) {
+
+                var hasBotReplies = reply.replies.reduce((acc, val) => {
+                    return (acc || (val.author.name == "chwsbot"));
+                }, false);
+
+                if (
+                    reply.body.toLowerCase().includes("confirm")
+                    && comment.body.toLowerCase().includes(reply.author.name.toLowerCase())
+                    && reply.author.name != comment.author.name
+                ) {
+                    if (!hasBotReplies) {
+                        logger.debug("NEW TRADE");
+                        addVouch(comment.author, reply.author, comment.permalink, reply);
+                    }
+                }
+            }
+        } //for comments
+
+        logger.debug("Done processing trades.");
+        resolve();
+
+    });
 }
 
 function addVouch(user1, user2, permalink, originalComment, replyto) {
@@ -328,7 +346,7 @@ function updateFlair(user, existingFlair, isMod) {
 
             db.get("SELECT COUNT(ALL) FROM vouches WHERE user1 = ? OR user2 = ?", [user.name, user.name], (err, row) => {
                 var rep = row['COUNT(ALL)'];
-                if (user.isMod && rep > 1) {
+                if (isMod && rep > 1) {
                     user.assignFlair({ subredditName: subredditName, text: modFlair + ' | ' + rep + ' Trades', cssClass: "mod" });
                 } else if (rep == 0) {
                     user.assignFlair({ subredditName: subredditName, text: 'No Confirmed Trades', cssClass: "newuser" });
@@ -429,6 +447,10 @@ async function main() {
             console.log("Forcing vouch for " + argv.addVouch);
             addVouch(r.getUser(argv.addVouch), { name: "nobody" }, "Override_" + Math.floor(Math.random() * 10000), false);
         }
+    }
+    if (argv.key && argv.value) {
+        console.log("Updaing DB");
+        db.run(`REPLACE INTO misc(k, v) VALUES(?, ?)`, [argv.key, argv.value]);
     }
     logger.debug("Done running.");
 }
