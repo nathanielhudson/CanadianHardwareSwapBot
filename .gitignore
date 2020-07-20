@@ -25,3 +25,4 @@ config.json
 chws.db
 log
 node_modules
+chwsbot.log
