@@ -118,7 +118,7 @@ function processNewPost(submission) {
                     validateAuthor(user, postInfo);
                     validateEMT(rep, submission, postInfo);
 
-                    if (postInfo.errors.length > 0) {
+                    if (postInfo.errors.length > 0 && submission.approved == false) {
                         submission.reply(`Hello!\n\nI've removed your post due to the following errors.\n\n* ${postInfo.errors.join("\n\n* ")}\n\n Please read the subreddit rules and try again. I'm just a bot, and I'm sorry if I got it wrong - if I did, please message the mods to let them know. Have a nice day!`)
                         submission.remove();
                         resolve(true); //done
