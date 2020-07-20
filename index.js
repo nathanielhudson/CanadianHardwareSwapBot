@@ -171,9 +171,9 @@ function validateTitle(title) {
     } else {
         //passed sanity, do the thing
         have = splitTitle[4];
-        var haveMoney = have.match(/cash|paypal|emt|emf|bitcoin/i);
+        var haveMoney = have.match(/cash|money|\$|paypal|emt|emf|bitcoin|etransfer|e-transfer/i);
         want = splitTitle[6];
-        var wantMoney = want.match(/cash|paypal|emt|emf|bitcoin/i);
+        var wantMoney = want.match(/cash|money|\$|paypal|emt|emf|bitcoin|etransfer|e-transfer/i);
 
         if (haveMoney && !wantMoney) {
             type = "buy";
@@ -197,7 +197,11 @@ function validateBody(submission, postInfo) {
         //scan for timestamp
         var timestamps = submission.selftext.match(/imgur.com|i.reddit.com|i.redd.it|cdn.discordapp.com|dropbox.com|drive.google.com|photos.google.com|flickr.com|ibb.co|gyazo.com|puu.sh|prntscr.com|postimg.org|tinypic.com/i);
         if (!timestamps) {
-            postInfo.errors.push("Your submission appears to be a selling or trading thread that lacks a timestamp picture. For best results please use imgur.");
+            if (postInfo.type == "sell") {
+                postInfo.errors.push("Your submission appears to be a selling thread that lacks a timestamp picture. For best results please use imgur.");
+            } else {
+                postInfo.errors.push("Your submission appears to be a trading thread that lacks a timestamp picture. For best results please use imgur.");
+            }
         }
     }
     var offsiteLinks = submission.selftext.match(/kijiji.ca|craigslist.ca|kijiji.com|craigslist.com/i);
@@ -207,14 +211,14 @@ function validateBody(submission, postInfo) {
 }
 
 function validateEMT(rep, submission, postInfo) {
-    var titleEMT = submission.title.match(/emt|emf|bitcoin/i);
-    var bodyEMT = submission.selftext.match(/emt|emf|bitcoin/i);
+    var titleEMT = submission.title.match(/emt|emf|bitcoin|etransfer|e-transfer/i);
+    var bodyEMT = submission.selftext.match(/emt|emf|bitcoin|etransfer|e-transfer/i);
     if (titleEMT || bodyEMT) {
         postInfo.wantsEMT = true;
         if (rep >= emtRepRequired) {
             postInfo.wantsEMT = true;
         } else {
-            postInfo.errors.push("EMT, Bitcoin and other electronic payment methods that do not have anti-scam prevention are banned for users with less than " + emtRepRequired + " confirmed trades.");
+            postInfo.errors.push("EMT, E-Transfer, Bitcoin and other electronic payment methods that do not have anti-scam prevention are banned for users with less than " + emtRepRequired + " confirmed trades.");
         }
     }
 }
