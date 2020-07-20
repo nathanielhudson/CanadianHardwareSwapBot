@@ -248,7 +248,7 @@ function makeTradeThread() {
         return new Promise((resolve) => {
             var tradeThread = r.getSubreddit(subredditName).submitSelfpost({
                 title: 'Confirmed Trade Thread', text: 'Post your confirmed trades below.\n\n To confirm a trade: User1 should create a comment tagging User2. User2 then replies to that comment with "Confirmed".'
-                    + '\n\nConfirming non-CanadianHardwareSwap trades, farming trades, or any other shenanigans will result in an immediate ban.'
+                    + '\n\nConfirming non-CanadianHardwareSwap trades, farming trades, or any other shenanigans will result in an immediate ban. '
                     + '**Please only confirm trades once both parties have their items in-hand (Don\'t confirm before you\'ve actually recived your package).**'
                     + '\n\nPosting what prices things sold for is highly encouraged.'
                     + '\n\nStay safe, and happy swapping!'
