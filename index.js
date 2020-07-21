@@ -330,7 +330,7 @@ function addVouch(user1, user2, permalink, replyto) {
     }
 }
 
-function updateFlair(user, existingFlair, isMod) {
+function updateFlair(user) {
     return new Promise(function (resolve) {
         getSubredditMods().then((mods) => {
             var isMod = false;
