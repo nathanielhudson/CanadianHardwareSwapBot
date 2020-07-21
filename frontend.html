@@ -1,0 +1,135 @@
+<html>
+
+<head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8"/>
+
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300italic,700,700italic">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/normalize/8.0.1/normalize.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/milligram/1.4.0/milligram.css">
+    <style>
+        body {
+            background: #ecdaf7;
+        }
+        section.container {
+            margin-top: 25px;
+            background: #FFF;
+            border-radius: 3px;
+            padding: 45px;
+        }
+        .postBody {
+            max-width: 800px;
+            white-space: pre-wrap;
+            max-height: 300px;;
+        }
+    </style>
+
+</head>
+
+<body>
+    <main id="main" class="wrapper">
+        loading...
+    </main>
+    <script src="https://cdn.jsdelivr.net/npm/handlebars@latest/dist/handlebars.js"></script>
+
+    <script>
+        var hbTemplateText = `
+        <section class="container">
+            <h1>🤖 CHWSBot Infodump for <a target="_BLANK" href="https://reddit.com/u/{{name}}"">{{name}}</a></h1>
+        </section>
+
+        <section class="container">
+            <h2>Vouches ({{vouches.length}})</h2>
+            <table class="pure-table pure-table-striped">
+                <thead>
+                    <tr>
+                        <th></th>
+                        <th>User 1</th>
+                        <th>User 2</th>
+                        <th>Timestamp</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {{#each vouches}}
+                    <tr>
+                        <td>{{#if (isNotOverride this.permalink)}}<a target="_BLANK" href="https://reddit.com{{this.permalink}}">Link</a>{{else}}{{/if}}</td>
+                        <td><a href="/user/{{this.user1}}">{{this.user1}}</a></td>
+                        <td>{{#if (isNotOverride this.permalink)}}<a href="/user/{{this.user2}}">{{this.user2}}</a>{{/if}}</td>
+                        <td>{{relative this.timestamp}}</td>
+                    </tr>
+                    {{/each}}
+                </tbody>
+            </table>
+        </section>
+        <section class="container">
+            <h2>Posts ({{posts.length}})</h2>
+            <table class="pure-table pure-table-striped">
+                <thead>
+                    <tr>
+                        <th></th>
+                        <th>Title</th>
+                        <th>Body</th>
+                        <th>Timestamp</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {{#each posts}}
+                    <tr>
+                        <td><a target="_BLANK" href="https://reddit.com{{this.permalink}}">Link</a></td>
+                        <td>{{#if this.title}}{{this.title}}{{else}}No Stored Title...{{/if}}</td>
+                        <td><pre class="postBody">{{this.body}}</pre></td>
+                        <td>{{relative this.timestamp}}</td>
+                    </tr>
+                    {{/each}}
+                </tbody>
+            </table>
+        </section>
+        `;
+        var url = "/api/user/" + window.location.pathname.replace("/user/", "");
+        var main = document.getElementById("main");
+
+        Handlebars.registerHelper('relative', function (stamp) {
+            return timeSince(new Date(stamp));
+        });
+        Handlebars.registerHelper('isNotOverride', function (link) {
+            return !link.startsWith("Override");
+        });
+
+        var hbTemplate = Handlebars.compile(hbTemplateText);
+
+        fetch(url)
+            .then(res => res.json())
+            .then((out) => {
+                main.innerHTML = hbTemplate(out);
+                console.log('Checkout this JSON! ', out);
+            })
+            .catch(err => {
+                throw err;
+            });
+
+        function timeSince(timeStamp) {
+            var now = new Date(),
+                secondsPast = (now.getTime() - timeStamp) / 1000;
+            if (secondsPast < 60) {
+                return parseInt(secondsPast) + 's';
+            }
+            if (secondsPast < 3600) {
+                return parseInt(secondsPast / 60) + 'm';
+            }
+            if (secondsPast <= 86400) {
+                return parseInt(secondsPast / 3600) + 'h';
+            }
+            if (secondsPast > 86400) {
+                day = timeStamp.getDate();
+                month = timeStamp.toDateString().match(/ [a-zA-Z]*/)[0].replace(" ", "");
+                year = timeStamp.getFullYear() == now.getFullYear() ? "" : " " + timeStamp.getFullYear();
+                return day + " " + month + year;
+            }
+        }
+
+
+
+
+    </script>
+</body>
+
+</html>
