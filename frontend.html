@@ -38,29 +38,6 @@
         </section>
 
         <section class="container">
-            <h2>Vouches ({{vouches.length}})</h2>
-            <table class="pure-table pure-table-striped">
-                <thead>
-                    <tr>
-                        <th></th>
-                        <th>User 1</th>
-                        <th>User 2</th>
-                        <th>Timestamp</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {{#each vouches}}
-                    <tr>
-                        <td>{{#if (isNotOverride this.permalink)}}<a target="_BLANK" href="https://reddit.com{{this.permalink}}">Link</a>{{else}}{{/if}}</td>
-                        <td><a href="/user/{{this.user1}}">{{this.user1}}</a></td>
-                        <td>{{#if (isNotOverride this.permalink)}}<a href="/user/{{this.user2}}">{{this.user2}}</a>{{/if}}</td>
-                        <td>{{relative this.timestamp}}</td>
-                    </tr>
-                    {{/each}}
-                </tbody>
-            </table>
-        </section>
-        <section class="container">
             <h2>Posts ({{posts.length}})</h2>
             <table class="pure-table pure-table-striped">
                 <thead>
@@ -77,6 +54,30 @@
                         <td><a target="_BLANK" href="https://reddit.com{{this.permalink}}">Link</a></td>
                         <td>{{#if this.title}}{{this.title}}{{else}}No Stored Title...{{/if}}</td>
                         <td><pre class="postBody">{{this.body}}</pre></td>
+                        <td>{{relative this.timestamp}}</td>
+                    </tr>
+                    {{/each}}
+                </tbody>
+            </table>
+        </section>
+
+        <section class="container">
+            <h2>Vouches ({{vouches.length}})</h2>
+            <table class="pure-table pure-table-striped">
+                <thead>
+                    <tr>
+                        <th></th>
+                        <th>User 1</th>
+                        <th>User 2</th>
+                        <th>Timestamp</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {{#each vouches}}
+                    <tr>
+                        <td>{{#if (isNotOverride this.permalink)}}<a target="_BLANK" href="https://reddit.com{{this.permalink}}">Link</a>{{else}}{{/if}}</td>
+                        <td><a href="/user/{{this.user1}}">{{this.user1}}</a></td>
+                        <td>{{#if (isNotOverride this.permalink)}}<a href="/user/{{this.user2}}">{{this.user2}}</a>{{/if}}</td>
                         <td>{{relative this.timestamp}}</td>
                     </tr>
                     {{/each}}
