@@ -1,7 +1,7 @@
 <html>
 
 <head>
-    <meta http-equiv="Content-Type" content="text/html; charset=utf-8"/>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
 
     <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300italic,700,700italic">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/normalize/8.0.1/normalize.css">
@@ -10,16 +10,19 @@
         body {
             background: #ecdaf7;
         }
+
         section.container {
             margin-top: 25px;
             background: #FFF;
             border-radius: 3px;
             padding: 45px;
         }
+
         .postBody {
             max-width: 800px;
             white-space: pre-wrap;
-            max-height: 300px;;
+            max-height: 300px;
+            ;
         }
     </style>
 
@@ -30,9 +33,17 @@
         loading...
     </main>
     <script src="https://cdn.jsdelivr.net/npm/handlebars@latest/dist/handlebars.js"></script>
-
     <script>
-        var hbTemplateText = `
+        var main = document.getElementById("main");
+
+        Handlebars.registerHelper('relative', function (stamp) {
+            return timeSince(new Date(stamp + " UTC"));
+        });
+        Handlebars.registerHelper('isNotOverride', function (link) {
+            return !link.startsWith("Override");
+        });
+
+        var userTemplate = Handlebars.compile(`
         <section class="container">
             <h1>🤖 CHWSBot Infodump for <a target="_BLANK" href="https://reddit.com/u/{{name}}"">{{name}}</a></h1>
         </section>
@@ -84,28 +95,37 @@
                 </tbody>
             </table>
         </section>
-        `;
-        var url = "/api/user/" + window.location.pathname.replace("/user/", "");
-        var main = document.getElementById("main");
+        `);
 
-        Handlebars.registerHelper('relative', function (stamp) {
-            return timeSince(new Date(stamp + " UTC"));
-        });
-        Handlebars.registerHelper('isNotOverride', function (link) {
-            return !link.startsWith("Override");
-        });
+        if (window.location.pathname.startsWith("/user/")) {
+            var url = "/api/user/" + window.location.pathname.replace("/user/", "");
+            fetch(url)
+                .then(res => res.json())
+                .then((out) => {
+                    main.innerHTML = userTemplate(out);
+                    console.log(out);
+                }).catch(err => {
+                    throw err;
+                });
+        } else if (window.location.pathname.startsWith("/overview")) {
+            var url = "/api/vouches/";
+            fetch(url)
+                .then(res => res.json())
+                .then((out) => {
+                    console.log(out);
+                    dynamicLoadScript("//unpkg.com/three").then(value=>{
+                        return dynamicLoadScript("//unpkg.com/three-spritetext")
+                    }).then(value=>{
+                        return dynamicLoadScript("//unpkg.com/3d-force-graph")
+                    }).then(value=>{
+                        autoFDG(out)
+                    })
+                }).catch(err => {
+                    throw err;
+                });
+        }
 
-        var hbTemplate = Handlebars.compile(hbTemplateText);
 
-        fetch(url)
-            .then(res => res.json())
-            .then((out) => {
-                main.innerHTML = hbTemplate(out);
-                console.log('Checkout this JSON! ', out);
-            })
-            .catch(err => {
-                throw err;
-            });
 
         function timeSince(timeStamp) {
             var now = new Date(),
@@ -125,6 +145,78 @@
                 year = timeStamp.getFullYear() == now.getFullYear() ? "" : " " + timeStamp.getFullYear();
                 return day + " " + month + year;
             }
+        }
+
+        function dynamicLoadScript(src) {
+            return new Promise((resolve, reject) => {
+                var script = document.createElement('script');
+                script.onload = function () {
+                    resolve();
+                };
+                script.src = src;
+                document.head.appendChild(script); //or something of the likes
+            });
+        }
+
+        function autoFDG(raw) {
+            var data = {
+                nodes: [],
+                links: []
+            }
+
+            var uniqueUsers = {};
+
+            for (vouch of raw.vouches) {
+                uniqueUsers[vouch.user1] = true;
+                uniqueUsers[vouch.user2] = true;
+
+                var source = (vouch.user1 > vouch.user2) ? vouch.user1 : vouch.user2;
+                var target = (vouch.user1 < vouch.user2) ? vouch.user1 : vouch.user2;
+
+                var existingItem = data.links.filter(e => e.source === source && e.target === target);
+                if (existingItem.length > 0) {
+                    existingItem[0].value++;
+                } else {
+                    data.links.push({
+                        source: source,
+                        target: target,
+                        value: 1
+                    });
+                }
+            }
+
+            for (user in uniqueUsers) {
+                data.nodes.push({
+                    id: user,
+                    group: 1
+                });
+            }
+
+            const Graph = ForceGraph3D()
+                (main)
+                .graphData(data)
+                .nodeId('id')
+                .nodeAutoColorBy('id')
+                .linkOpacity(0.5)
+                .nodeThreeObject(node => {
+                    // use a sphere as a drag handle
+                    const obj = new THREE.Mesh(
+                        new THREE.SphereGeometry(10),
+                        new THREE.MeshBasicMaterial({ depthWrite: false, transparent: true, opacity: 0 })
+                    );
+
+                    // add text sprite as child
+                    const sprite = new SpriteText(node.id);
+                    sprite.color = node.color;
+                    sprite.textHeight = 8;
+                    obj.add(sprite);
+
+                    return obj;
+                });
+
+            // Spread nodes a little wider
+            //more negative -> wider spread
+            Graph.d3Force('charge').strength(-300);
         }
 
 
