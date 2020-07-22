@@ -89,7 +89,7 @@
         var main = document.getElementById("main");
 
         Handlebars.registerHelper('relative', function (stamp) {
-            return timeSince(new Date(stamp));
+            return timeSince(new Date(stamp + " UTC"));
         });
         Handlebars.registerHelper('isNotOverride', function (link) {
             return !link.startsWith("Override");
