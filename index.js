@@ -55,7 +55,7 @@ let db = new sqlite3.Database(__dirname + '/chws.db', (err) => {
 function initializeDB() {
     db.run("CREATE TABLE misc (k TEXT PRIMARY KEY, v TEXT)");
     db.run("CREATE TABLE vouches (user1 TEXT, user2 TEXT, permalink TEXT UNIQUE, timestamp DATETIME DEFAULT CURRENT_TIMESTAMP)");
-    db.run("CREATE TABLE posts (user TEXT, id TEXT PRIMARY KEY, body TEXT, permalink TEXT UNIQUE, timestamp DATETIME DEFAULT CURRENT_TIMESTAMP)");
+    db.run("CREATE TABLE posts (user TEXT, id TEXT PRIMARY KEY, title TEXT, body TEXT, permalink TEXT UNIQUE, timestamp DATETIME DEFAULT CURRENT_TIMESTAMP)");
 }
 
 /******************************************************************
@@ -93,7 +93,7 @@ function ignoreNewPosts() {
     r.getSubreddit(subredditName).getNew().then(function (submissions) {
         for (let submission of submissions) {
             logger.debug("ignoring submission " + submission.title);
-            db.run(`INSERT INTO posts(user, id, body, permalink) VALUES(?, ?, ?, ?)`, [submission.author.name, submission.id, submission.selftext, submission.permalink], () => {
+            db.run(`INSERT INTO posts(user, id, body, title, permalink) VALUES(?, ?, ?, ?, ?)`, [submission.author.name, submission.id, submission.selftext, submission.title, submission.permalink], () => {
             });
         }
     });
@@ -144,7 +144,7 @@ function processNewPost(submission) {
                             subject: `Thank you for posting to /r/CanadianHardwareSwap!`,
                             text: `Thank you for posting to /r/CanadianHardwareSwap. Based on your thread title I've automatically set your post's flair to **${messageText}**. If this is incorrect, please update your post's flair.`
                         });
-                        db.run(`INSERT INTO posts(user, id, body, permalink) VALUES(?, ?, ?, ?)`, [user.name, submission.id, submission.selftext, submission.permalink], () => {
+                        db.run(`INSERT INTO posts(user, id, body, title, permalink) VALUES(?, ?, ?, ?, ?)`, [user.name, submission.id, submission.selftext, submission.title, submission.permalink], () => {
                             updateFlair(user).then(() => {
                                 resolve(true); //done
                             });
