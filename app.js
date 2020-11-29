@@ -14,7 +14,11 @@ async function main() {
     } else if (argv.ignoreNewPosts) {
         await backend.ignoreNewPosts();
     } else if (argv.forceVouch) { 
+        console.log("Forcing vouch for " + argv.forceVouch);
         await backend.forceVouch();
+    } else if (argv.updateFlair) {
+        console.log("Updating flair for " + argv.updateFlair);
+        await backend.updateFlair(argv.updateFlair);
     } else {
         console.log("No valid args found. Starting up in standard mode.");
         frontend.setDB(backend.getDB());

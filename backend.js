@@ -306,6 +306,9 @@ async function addVouch(user1, user2, permalink, replyto) {
 }
 
 async function updateFlair(user) {
+    if (typeof user == "string") {
+        user = await r.getUser(user);
+    }
     var mods = await getSubredditMods();
     var isMod = false;
     var modFlair;
@@ -327,6 +330,8 @@ async function updateFlair(user) {
     var row = await db.get("SELECT COUNT(ALL) FROM vouches WHERE user1 = ? OR user2 = ?", [user.name, user.name]);
     var rep = row['COUNT(ALL)'];
     if (isMod && rep > 1) {
+        await user.assignFlair({ subredditName: subredditName, text: modFlair, cssClass: "mod" });
+    } else if (isMod && rep > 1) {
         await user.assignFlair({ subredditName: subredditName, text: modFlair + ' | ' + rep + ' Trades', cssClass: "mod" });
     } else if (rep == 0) {
         await user.assignFlair({ subredditName: subredditName, text: 'No Confirmed Trades', cssClass: "newuser" });
@@ -478,6 +483,7 @@ exports.makeCheckThread = makeCheckThread;
 exports.processNewPosts = processNewPosts;
 exports.ignoreNewPosts = ignoreNewPosts;
 exports.forceVouch = forceVouch;
+exports.updateFlair = updateFlair;
 exports.getDB = getDB;
 
 
