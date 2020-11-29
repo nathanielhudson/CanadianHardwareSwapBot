@@ -138,7 +138,7 @@ function processNewPost(submission) {
                         if (postInfo.wantsEMT) {
                             emtWarning = "**Please note: OP has mentioned that they are interested in using EMT. Note that EMT transactions are NOT reversable in the event of a dispute or scam. Be extra careful if using EMT!**"
                         }
-                        submission.reply(`Username: ${user.name}\n\nConfirmed Trades: **${rep}**\n\nAccount Age: **${postInfo.accountAge}**\n\nKarma: **${user.link_karma + user.comment_karma}**\n\n${emtWarning}`).then(function (comment) { comment.distinguish({ status: true, sticky: true }); });
+                        submission.reply(`Username: ${user.name} ([History](http://chwsbot.nathanielh.com/user/${user.name}), [USL](https://universalscammerlist.com/search.php?username=${user.name})) \n\nConfirmed Trades: **${rep}**\n\nAccount Age: **${postInfo.accountAge}**\n\nKarma: **${user.link_karma + user.comment_karma}**\n\n${emtWarning}`).then(function (comment) { comment.distinguish({ status: true, sticky: true }); });
                         r.composeMessage({
                             to: user.name,
                             subject: `Thank you for posting to /r/CanadianHardwareSwap!`,
@@ -171,9 +171,9 @@ function validateTitle(title) {
     } else {
         //passed sanity, do the thing
         have = splitTitle[4];
-        var haveMoney = have.match(/cash|money|\$|paypal|emt|emf|bitcoin|etransfer|e-transfer/i);
+        var haveMoney = have.match(/cash|money|\$|paypal|emt|emf|bitcoin|interac|etransfer|e-transfer/i);
         want = splitTitle[6];
-        var wantMoney = want.match(/cash|money|\$|paypal|emt|emf|bitcoin|etransfer|e-transfer/i);
+        var wantMoney = want.match(/cash|money|\$|paypal|emt|emf|bitcoin|interac|etransfer|e-transfer/i);
 
         if (haveMoney && !wantMoney) {
             type = "buy";
@@ -211,14 +211,14 @@ function validateBody(submission, postInfo) {
 }
 
 function validateEMT(rep, submission, postInfo) {
-    var titleEMT = submission.title.match(/emt|emf|bitcoin|etransfer|e-transfer/i);
-    var bodyEMT = submission.selftext.match(/emt|emf|bitcoin|etransfer|e-transfer/i);
+    var titleEMT = submission.title.match(/emt|emf|bitcoin|interac|etransfer|e-transfer/i);
+    var bodyEMT = submission.selftext.match(/emt|emf|bitcoin|interac|etransfer|e-transfer/i);
     if (titleEMT || bodyEMT) {
         postInfo.wantsEMT = true;
         if (rep >= emtRepRequired) {
             postInfo.wantsEMT = true;
         } else {
-            postInfo.errors.push("EMT, E-Transfer, Bitcoin and other electronic payment methods that do not have anti-scam prevention are banned for users with less than " + emtRepRequired + " confirmed trades.");
+            postInfo.errors.push("EMT, E-Transfer, Bitcoin and other electronic payment methods that do not have anti-scam prevention are banned for users with less than " + emtRepRequired + " confirmed trades. Instead, we require that you use *PayPal Goods and Services* for non-local swaps.");
         }
     }
 }
