@@ -168,9 +168,9 @@ function validateTitle(title) {
     } else {
         //passed sanity, do the thing
         have = splitTitle[4];
-        var haveMoney = have.match(/cash|money|\$|paypal|emt|emf|bitcoin|interac|etransfer|e-transfer/i);
+        var haveMoney = have.match(/cash|money|paypal|emt|emf|bitcoin|interac|etransfer|e-transfer/i);
         want = splitTitle[6];
-        var wantMoney = want.match(/cash|money|\$|paypal|emt|emf|bitcoin|interac|etransfer|e-transfer/i);
+        var wantMoney = want.match(/cash|money|paypal|emt|emf|bitcoin|interac|etransfer|e-transfer/i);
 
         if (haveMoney && !wantMoney) {
             type = "buy";
@@ -183,6 +183,7 @@ function validateTitle(title) {
 
     return {
         errors: errors,
+        warnings: [],
         have: have,
         want: want,
         type: type
@@ -200,7 +201,19 @@ function validateBody(submission, postInfo) {
                 postInfo.errors.push("Your submission appears to be a trading thread that lacks a timestamp picture. For best results please use imgur.");
             }
         }
+        postInfo.warnings.push("Any user who DMs you without first commenting on your post may be a scammer trying to evade our ban list. Please let the mod team know if this happens.");
     }
+
+    var prices = submission.selftext.match(/\$|CAD|USD|pay/i);
+    if (!prices) {
+        if (postInfo.type == "buy") {
+            postInfo.warnings.push("The bot wasn't able to identify a buying price in your post. We require buying posts to include the approximate price they're hoping to pay. If your post doesn't include a price please edit one in. If you've already included a price - great, ignore this warning.");
+        }
+        if (postInfo.type == "sell") {
+            postInfo.warnings.push("The bot wasn't able to identify a selling price in your post. We require selling posts to include a price. If your post doesn't include a price please edit one in. If you've already included a price - great, ignore this warning.");
+        }
+    }
+
     var offsiteLinks = submission.selftext.match(/kijiji.ca|craigslist.ca|kijiji.com|craigslist.com/i);
     if (offsiteLinks) {
         postInfo.errors.push("Your submission appears to contain a link to an offsite ad.");
@@ -215,7 +228,7 @@ function validateEMT(rep, submission, postInfo) {
         if (rep >= emtRepRequired) {
             postInfo.wantsEMT = true;
         } else {
-            postInfo.errors.push("EMT, E-Transfer, Bitcoin and other electronic payment methods that do not have anti-scam prevention are banned for users with less than " + emtRepRequired + " confirmed trades. Instead, we require that you use *PayPal Goods and Services* for non-local swaps.");
+            postInfo.errors.push("EMT, E-Transfer, Bitcoin and other electronic payment methods that do not have anti-scam prevention are banned for users with less than " + emtRepRequired + " confirmed trades. Instead, we require that you use *PayPal Goods and Services* for non-local swaps. If your post says that you are only looking for EMT for local swaps please message the mods and ask us to manually approve your post.");
         }
     }
 }
@@ -240,16 +253,16 @@ async function makeTradeThread() {
     }
 
     var tradeThread = await r.getSubreddit(subredditName).submitSelfpost({
-        title: 'Confirmed Trade Thread'+getThreadDate(true), text: 'Post your confirmed trades below.\n\n To confirm a trade: User1 should create a comment tagging User2. User2 then replies to that comment with "Confirmed".'
+        title: 'Confirmed Trade Thread' + getThreadDate(true), text: 'Post your confirmed trades below.\n\n To confirm a trade: User1 should create a comment tagging User2. User2 then replies to that comment with "Confirmed".'
             + '\n\nConfirming non-CanadianHardwareSwap trades, farming trades, or any other shenanigans will result in an immediate ban. '
             + '**Please only confirm trades once both parties have their items in-hand (Don\'t confirm before you\'ve actually recived your package).**'
             + '\n\nPosting what prices things sold for is highly encouraged.'
             + '\n\nStay safe, and happy swapping!'
     }).sticky().approve();
-    
+
     try {
         await tradeThread.selectFlair({ flair_template_id: '7a742520-840f-11e6-b719-0e11fe917ecf' });
-    } catch(err) {
+    } catch (err) {
         logger.log("Setting tradeThread flair failed. Probably a bad flair_template_id.");
     }
 
@@ -367,7 +380,7 @@ function personality() {
     var items = [
         "Merci!", "Thank you!", "Thank you!", "Thanks!", "Watch out for moose.", "Thanks for using CHWS!", "Have a good one!", "Have a nice day!",
         "Have a nice day!", "Buy Igloo insurance!", "The best milk comes in bags.", "Buy me a house hippo.", "The robot uprising is imminent!",
-        "🍁", "🍁", "🍁🍁🍁"
+        "🍁", "🍁", "🍁🍁🍁", "I live on a Raspberry Pi!"
     ];
     return " " + items[Math.floor(Math.random() * items.length)];
 }
@@ -382,7 +395,6 @@ async function getSubredditMods() {
 
 
 function millisecondsToStr(elapsed) {
-
     var msPerMinute = 60 * 1000;
     var msPerHour = msPerMinute * 60;
     var msPerDay = msPerHour * 24;
@@ -419,71 +431,28 @@ function getThreadDate(includeDay) {
     var months = ["January", "Febuary", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
     var day = "";
     if (includeDay) {
-        day = " "+d.getDate();
+        day = " " + d.getDate();
     }
-    return " - "+months[d.getMonth()]+day+" "+d.getFullYear();
+    return " - " + months[d.getMonth()] + day + " " + d.getFullYear();
 }
 
 async function makeCheckThread() {
     var checkThread = await r.getSubreddit(subredditName).submitSelfpost({
-        title: 'Price Check Thread'+getThreadDate(false), text: `Get your hardware appraised here!
-
-        Please consider sorting the comments by "new" (instead of "best" or "top") to see the newest posts.
-        
-        Alternatively, join the CanadianHardwareSwap Discord, which includes a price check channel - https://discord.gg/tMaF8d7`
+        title: 'Price Check Thread' + getThreadDate(false), text: `Get your hardware appraised here!\n`
+            + `Please consider sorting the comments by "new" (instead of "best" or "top") to see the newest posts.\n`
+            + `Alternatively, join the CanadianHardwareSwap Discord, which includes a price check channel - https://discord.gg/tMaF8d7`
     }).sticky().approve();
-    
+
     try {
-        await tradeThread.selectFlair({ flair_template_id: '7a742520-840f-11e6-b719-0e11fe917ecf' });
-    } catch(err) {
+        await checkThread.selectFlair({ flair_template_id: '7a742520-840f-11e6-b719-0e11fe917ecf' });
+    } catch (err) {
         logger.log("Setting checkThread flair failed. Probably a bad flair_template_id.");
     }
 }
 
 /******************************************************************
-************* MAIN
+************* EXPORTS
 ******************************************************************/
-
-/*async function main() {
-    var argv = yargs.argv;
-
-    await openDB();
-
-    if (argv.init) {
-        await initializeDB();
-    }
-
-    if (argv.processTradeThread) {
-        await processTradeThread();
-    }
-
-    if (argv.makeTradeThread) {
-        await makeTradeThread();
-    }
-
-    if (argv.processNewPosts) {
-        await processNewPosts();
-    }
-    if (argv.ignoreNewPosts) {
-        ignoreNewPosts();
-    }
-    if (argv.addVouch) { //force-add vouches
-        
-    }
-    if (argv.key && argv.value) {
-        logger.log("Updating DB");
-        db.run(`REPLACE INTO misc(k, v) VALUES(?, ?)`, [argv.key, argv.value]);
-    }
-    logger.debug("Done running.");
-}
-
-(async () => {
-    try {
-        await main();
-    } catch (e) {
-        logger.error(e);
-    }
-})();*/
 
 exports.initializeDB = initializeDB;
 exports.openDB = openDB;
