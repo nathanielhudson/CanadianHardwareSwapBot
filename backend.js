@@ -97,7 +97,7 @@ async function processNewPost(submission) {
         return false;
     };
 
-    logger.debug("processing submission " + submission.title);
+    logger.debug("Processing submission " + submission.title);
 
     //okay, we havn't analyzed this post before. Get user info.
     var user = await submission.author.fetch();
@@ -129,17 +129,27 @@ async function processNewPost(submission) {
         } catch (err) {
             logger.error("Failed setting post fair. Probably a bad flair_template_id.");
         }
-        
+
         var emtWarning = "";
         if (postInfo.wantsEMT) {
             emtWarning = "**Please note: OP has mentioned that they are interested in using EMT. Note that EMT transactions are NOT reversable in the event of a dispute or scam. Be extra careful if using EMT!**"
         }
         await submission.reply(`Username: ${user.name} ([History](http://chwsbot.nathanielh.com/user/${user.name}), [USL](https://universalscammerlist.com/search.php?username=${user.name})) \n\nConfirmed Trades: **${rep}**\n\nAccount Age: **${postInfo.accountAge}**\n\nKarma: **${user.link_karma + user.comment_karma}**\n\n${emtWarning}`).then(function (comment) { comment.distinguish({ status: true, sticky: true }); });
-        await r.composeMessage({
-            to: user.name,
-            subject: `Thank you for posting to /r/CanadianHardwareSwap!`,
-            text: `Thank you for posting to /r/CanadianHardwareSwap. Based on your thread title I've automatically set your post's flair to **${messageText}**. If this is incorrect, please update your post's flair.`
-        });
+
+        var warningText = "";
+        if (postInfo.warnings) {
+            warningText = "\n\nPlease note:\n\n* " + postInfo.warnings.join("\n\n* ");
+        }
+        try {
+            await r.composeMessage({
+                to: user.name,
+                subject: `Thank you for posting to /r/CanadianHardwareSwap!`,
+                text: `Thank you for posting to /r/CanadianHardwareSwap. Based on your thread title I've automatically set your post's flair to **${messageText}**. If this is incorrect, please update your post's flair.${warningText}`
+            });
+        } catch {
+            logger.error("Failed DMing user "+user.name+". They probably have DMs turned off.");
+        }
+        
         await db.run(`INSERT INTO posts(user, id, body, title, permalink) VALUES(?, ?, ?, ?, ?)`, [user.name, submission.id, submission.selftext, submission.title, submission.permalink]);
         await updateFlair(user);
         return true;
