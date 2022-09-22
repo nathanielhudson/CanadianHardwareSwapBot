@@ -221,8 +221,8 @@ function validateBody(submission, postInfo) {
 }
 
 function validateEMT(rep, submission, postInfo) {
-    var titleEMT = submission.title.match(/emt|emf|bitcoin|interac|etransfer|e-transfer/i);
-    var bodyEMT = submission.selftext.match(/emt|emf|bitcoin|interac|etransfer|e-transfer/i);
+    var titleEMT = submission.title.match(/\b(emt|emf|bitcoin|interac|etransfer|e-transfer)\b/i);
+    var bodyEMT = submission.selftext.match(/\b(emt|emf|bitcoin|interac|etransfer|e-transfer)\b/i);
     if (titleEMT || bodyEMT) {
         postInfo.wantsEMT = true;
         if (rep >= emtRepRequired) {
@@ -316,7 +316,7 @@ async function processTradeThreadByID(ID) {
 }
 
 async function addVouch(user1, user2, permalink, replyto) {
-    await db.run(`INSERT INTO vouches(user1, user2, permalink) VALUES(?, ?, ?)`, [user1.name, user2.name, permalink]);
+    await db.run(`INSERT OR IGNORE INTO vouches(user1, user2, permalink) VALUES(?, ?, ?)`, [user1.name, user2.name, permalink]);
     if (user1.name != "nobody") {
         await updateFlair(user1);
     }
