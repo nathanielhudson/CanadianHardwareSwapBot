@@ -8,7 +8,7 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/milligram/1.4.0/milligram.css">
     <style>
         body {
-            background: #ecdaf7;
+            background: #301d3e;
         }
 
         section.container {
@@ -19,7 +19,7 @@
         }
 
         .postBody {
-            max-width: 800px;
+            width: 580px;
             white-space: pre-wrap;
         }
     </style>
@@ -35,7 +35,7 @@
         var main = document.getElementById("main");
 
         Handlebars.registerHelper('relative', function (stamp) {
-            return timeSince(new Date(stamp + " UTC"));
+            return timeSince(new Date(stamp + "Z"));
         });
         Handlebars.registerHelper('isNotOverride', function (link) {
             return !link.startsWith("Override");
@@ -152,7 +152,7 @@
                     resolve();
                 };
                 script.src = src;
-                document.head.appendChild(script); //or something of the likes
+                document.head.appendChild(script); //or something of the like
             });
         }
 
